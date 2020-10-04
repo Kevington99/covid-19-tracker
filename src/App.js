@@ -2,11 +2,25 @@ import React, { useState, useEffect } from 'react';
 import{MenuItem,FormControl,Select, Card, CardContent} from "@material-ui/core";
 import InfoBox from './InfoBox';
 import Map from './Map';
+import Table from './Table';
 import './App.css';
+import {sortData} from "./util";
+
 
 function App() {
   const [countries, setCountries] = useState([]); // STATE = How to write a variable in REACT [variable, modifier that changes variable]
   const [country, setCountry] = useState('worldwide');
+  const [countryInfo, setCountryInfo] = useState({}); //{} makes it an empty object. Specific country pulled
+  const [tableData, setTableData] = useState ([]); // [] empty array
+
+useEffect(() => {
+  fetch("https://disease.sh/v3/covid-19/all")
+  .then(response => response.json())
+  .then(data => {
+    setCountryInfo(data);
+  });
+}, []);
+
   useEffect(() => {
     // Runs a piece of code based on a given condition
     // Write an internal function
@@ -15,14 +29,16 @@ function App() {
       const getCountriesData = async () => { // async -> send a request to server, wait for it, do something with info
         await fetch ("https://disease.sh/v3/covid-19/countries") // Request URL
         .then((response) => response.json()) // When it comes back get response and just use the json
-        .then((data) => { // Then, when we get response as data..
+        .then((data) => { // Then, when we get response as data
           const countries = data.map((country) => ( // .map loops through countries and return an object in a shape
             {
               name: country.country, // Assign name key return United States, United Kingdom
               value: country.countryInfo.iso2 // Assign value key return UK, USA, FR
             }));
 
-            setCountries(countries); 
+            const sortedData = sortData(data)
+            setCountries(countries);
+            setTableData(sortedData); 
         });
       };
 
@@ -33,8 +49,18 @@ function App() {
       const countryCode = event.target.value; //grabs selected value
       //console.log('Yooooooooo', countryCode);
 
-      setCountry(countryCode); //leaves dropdown as selected option
-    }
+      const url = countryCode === 'worldwide' ? 'https://disease.sh/v3/covid-19/all' : `https://disease.sh/v3/covid-19/countries/${countryCode}`
+      // javascript concantinated with string. Use back ticks
+
+      await fetch(url) // Go to url
+      .then((response) => response.json()) //turn response into json data tree
+      .then((data) => {
+        setCountryInfo(data); //store response of country infomation into a variable
+        setCountry(countryCode); //updates input field. leaves dropdown as selected option
+      }); 
+    };
+
+    console.log('COUNTRY INFO >>>', countryInfo);  
 
   return (
     <div className="app"> 
@@ -53,9 +79,9 @@ function App() {
         </div>
 
         <div className="app__stats">
-          <InfoBox title="Coronavirus Cases" cases={123} total={2000}/>
-          <InfoBox title="Recovered" cases={12345} total={3000}/>
-          <InfoBox title="Deaths" cases={12364} total={4000}/>
+          <InfoBox title="Coronavirus Cases" cases={countryInfo.todayCases} total={countryInfo.cases}/>
+          <InfoBox title="Recovered" cases={countryInfo.todayRecovered} total={countryInfo.recovered}/>
+          <InfoBox title="Deaths" cases={countryInfo.todayDeaths} total={countryInfo.deaths}/>
         </div>
 
         <Map/>
@@ -64,6 +90,7 @@ function App() {
       <Card className="app__right">
         <CardContent>
           <h3>Live Cases by Country</h3>
+          <Table countries={tableData} />
           <h3>Worldwide New Cases</h3>
         </CardContent>
 
